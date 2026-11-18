@@ -1,0 +1,1118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="titrePage">Get The A : VI</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; background: #050510; color: #eee;
+         margin: 0; padding: 16px; display: flex; justify-content: center; }
+  .conteneur { max-width: 660px; width: 100%; }
+  h1 { text-align: center; font-size: 22px; color: #00eaff; margin: 4px 0 2px;
+       text-shadow: 0 0 10px rgba(0,234,255,0.5); }
+  .sous-titre { text-align: center; color: #9b8cff; font-size: 13px; margin-bottom: 10px; }
+  .hud { display: flex; justify-content: space-between; align-items: center;
+         background: #12122a; border: 2px solid #2a2a55; border-radius: 10px;
+         padding: 8px 14px; margin-bottom: 8px; font-size: 14px; font-weight: bold; }
+  .vies span.perdue { opacity: 0.25; }
+  #info-action { text-align: center; min-height: 20px; color: #ffd166; font-size: 13px;
+                 font-weight: bold; margin-bottom: 6px; }
+  canvas { display: block; margin: 0 auto; background: #0b0b1a; border-radius: 12px;
+           border: 2px solid #2a2a55; max-width: 100%; }
+  .aide { text-align: center; color: #888; font-size: 12px; margin-top: 8px; }
+  .overlay { position: fixed; inset: 0; background: rgba(2,2,10,0.82);
+             display: none; align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+  .panneau { background: #12122a; border: 2px solid #ff2d78; border-radius: 14px;
+             padding: 22px; max-width: 560px; width: 100%; box-shadow: 0 0 30px rgba(255,45,120,0.35); }
+  .panneau h2 { margin: 0 0 12px; text-align: center; font-size: 18px; color: #ff2d78; }
+  .consigne { text-align: center; font-size: 16px; margin: 6px 0 14px; color: #fff; }
+  .mugshots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .mugshot { background: #0f0f26; border: 2px solid #334; border-radius: 10px;
+             padding: 10px 4px; text-align: center; cursor: pointer; transition: 0.15s; }
+  .mugshot:hover { border-color: #00eaff; }
+  .surnom { font-size: 11px; color: #888; font-style: italic; }
+  .visage svg { width: 36px; height: 36px; }
+  .etiquette { margin-top: 2px; font-size: 13px; font-weight: bold; color: #ddd;
+               word-break: break-word; }
+  input[type=text] { width: 100%; padding: 12px; font-size: 16px; border-radius: 10px;
+                      border: 2px solid #334; background: #0f0f26; color: #eee;
+                      margin-bottom: 12px; text-align: center; letter-spacing: 1px; }
+  .bouton { display: block; width: 100%; padding: 13px; margin-top: 8px; border: none;
+            border-radius: 10px; background: #00eaff; color: #05050f; font-size: 15px;
+            font-weight: bold; cursor: pointer; }
+  .bouton:hover { background: #2fe0ff; }
+  .feedback { min-height: 20px; text-align: center; font-weight: bold; font-size: 14px; margin-top: 10px; }
+  .feedback .ok { color: #2ecc71; }
+  .feedback .ko { color: #ff5d7a; }
+  .barre-controles { position: fixed; top: 10px; right: 10px; display: flex; gap: 6px; z-index: 50; }
+  .btn-ctrl { background: #12122a; border: 2px solid #334; color: #eee; border-radius: 8px;
+              width: 38px; height: 38px; font-size: 17px; cursor: pointer; }
+  .btn-ctrl:hover { border-color: #00eaff; }
+</style>
+</head>
+<body>
+<div class="barre-controles">
+  <button class="btn-ctrl" onclick="basculerPleinEcran()" title="Plein écran">⛶</button>
+  <button class="btn-ctrl" onclick="reinitialiserPartie()" title="Recommencer la partie">🔄</button>
+  <button class="btn-ctrl" onclick="quitterVersEcranTitre()" title="Quitter vers l'écran titre">🚪</button>
+</div>
+<div class="conteneur">
+  <h1 id="titreH1">🌃 Get The A : VI</h1>
+  <div class="sous-titre">Explore la ville, entre dans un lieu (⏎) et capture les formes de chaque verbe.</div>
+  <div class="hud">
+    <div id="hud-score">🎯 Capturés : 0 / 0</div>
+    <div class="vies" id="hud-vies"></div>
+  </div>
+  <div id="info-action"></div>
+  <canvas id="carte" width="640" height="400"></canvas>
+  <div class="aide">Flèches ou Z Q S D : se déplacer · Entrée : agir</div>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="panneau">
+    <h2 id="titreJeu"></h2>
+    <div id="zoneJeu"></div>
+    <div class="feedback" id="feedbackJeu"></div>
+  </div>
+</div>
+
+<script>
+function _b64UrlToJson(s) {
+  let b64 = s.replace(/-/g, "+").replace(/_/g, "/");
+  while (b64.length % 4) b64 += "=";
+  const binaire = atob(b64);
+  const octets = Uint8Array.from(binaire, c => c.charCodeAt(0));
+  return JSON.parse(new TextDecoder().decode(octets));
+}
+
+const VERBES_DEMO = [
+  { base: "go", preterit: "went", participe: "gone",
+    decoys: { base: ["do", "no", "so"], preterit: ["ran", "sat", "won"], participe: ["done", "sat", "won"] } },
+  { base: "take", preterit: "took", participe: "taken",
+    decoys: { base: ["make", "wake", "shake"], preterit: ["shook", "woke", "broke"], participe: ["shaken", "woken", "broken"] } },
+  { base: "see", preterit: "saw", participe: "seen",
+    decoys: { base: ["be", "flee", "free"], preterit: ["flew", "drew", "grew"], participe: ["flown", "drawn", "grown"] } },
+];
+
+const _paramsURL = new URLSearchParams(location.search);
+let VERBES = VERBES_DEMO;
+let _modeDemo = true;
+const _vParam = _paramsURL.get("v");
+if (_vParam) {
+  try {
+    VERBES = _b64UrlToJson(_vParam);
+    _modeDemo = false;
+  } catch (e) {
+    console.error("Lien de verbes invalide, bascule sur la démo :", e);
+  }
+}
+const TITRE_PAGE = _paramsURL.get("t") || (_modeDemo ? "Get The A : VI (démo)" : "Get The A : VI");
+document.title = TITRE_PAGE;
+document.getElementById("titrePage").textContent = TITRE_PAGE;
+document.getElementById("titreH1").textContent = "🌃 " + TITRE_PAGE;
+const N_TOTAL = VERBES.length;
+const VIES_DEPART = 5;
+
+// Sprites fournis par l'utilisateur (silhouettes originales découpées depuis une planche
+// nettoyée de toute marque/violence, 2026-11-18) -- {} si le dossier assets_verbquest/ est
+// vide, auquel cas tout le rendu retombe sur les formes vectorielles déjà en place.
+const SPRITES = {"heros": {"assomme": "assets/heros_assomme.png", "attraper": "assets/heros_attraper.png", "course_left": "assets/heros_course_left.png", "course_right": "assets/heros_course_right.png", "essouffle": "assets/heros_essouffle.png", "marche_left": "assets/heros_marche_left.png", "marche_right": "assets/heros_marche_right.png", "recule_left": "assets/heros_recule_left.png", "recule_right": "assets/heros_recule_right.png", "repos": "assets/heros_repos.png"}, "heroine": {"assomme": "assets/heroine_assomme.png", "attraper": "assets/heroine_attraper.png", "course_left": "assets/heroine_course_left.png", "course_right": "assets/heroine_course_right.png", "essouffle": "assets/heroine_essouffle.png", "marche_left": "assets/heroine_marche_left.png", "marche_right": "assets/heroine_marche_right.png", "recule_left": "assets/heroine_recule_left.png", "recule_right": "assets/heroine_recule_right.png", "repos": "assets/heroine_repos.png"}, "policiers": {"policier1": "assets/policier1_marche.png", "policier2": "assets/policier2_marche.png"}, "mechants": {"gangster1": "assets/gangster1_marche.png", "gangster2": "assets/gangster2_marche.png", "mobster1": "assets/mobster1_marche.png", "mobster2": "assets/mobster2_marche.png", "thug1": "assets/thug1_marche.png", "thug2": "assets/thug2_marche.png", "rival1": "assets/rival1_marche.png", "rival2": "assets/rival2_marche.png", "gangs_chief1": "assets/gangs_chief1_marche.png", "gangs_chief2": "assets/gangs_chief2_marche.png"}, "objets": {"coeur": "assets/coeur.png", "full_life": "assets/full_life.png", "speed": "assets/speed.png", "jump": "assets/jump.png", "coin": "assets/coin.png", "money": "assets/money.png"}};
+const IMAGES = {};
+Object.keys(SPRITES).forEach(perso => {
+  IMAGES[perso] = {};
+  Object.keys(SPRITES[perso]).forEach(pose => {
+    const img = new Image();
+    img.src = SPRITES[perso][pose];
+    IMAGES[perso][pose] = img;
+  });
+});
+
+function _spriteDispo(perso, pose) {
+  const img = IMAGES[perso] && IMAGES[perso][pose];
+  return !!(img && img.complete && img.naturalWidth > 0);
+}
+
+// Dessine le sprite (perso/pose) centré en (x,y), hauteur fixée, retourné à gauche si
+// faceGauche -- renvoie false (rien dessiné) si ce sprite n'est pas disponible, pour laisser
+// l'appelant retomber sur le rendu vectoriel existant.
+function dessinerPersonnage(c, x, y, perso, pose, faceGauche, hauteur) {
+  if (!_spriteDispo(perso, pose)) return false;
+  const img = IMAGES[perso][pose];
+  const largeur = hauteur * (img.naturalWidth / img.naturalHeight);
+  c.save();
+  c.translate(x, y);
+  if (faceGauche) c.scale(-1, 1);
+  c.drawImage(img, -largeur / 2, -hauteur / 2, largeur, hauteur);
+  c.restore();
+  return true;
+}
+
+// Compteur de frames global, incrémenté une fois par tour de boucle() -- sert d'horloge
+// d'animation partagée (alternance de pose, rebond de marche), indépendante de la vitesse de
+// défilement (qui elle varie avec la difficulté).
+let _tempsAnim = 0;
+
+// Certaines poses (marche/course/recule pour l'instant) ont 2 images -- "_left"/"_right",
+// une jambe différente en avant à chaque fois (demande explicite du 2026-11-18 : "j'ai généré
+// des images left et right pour créer le mouvement") -- alternées pendant le déplacement pour
+// un vrai cycle de marche. Repli sur la variante seule si une seule existe (ex: héros n'a que
+// "course_right" pour l'instant), puis sur la pose sans suffixe, sinon le vectoriel prend le
+// relais comme d'habitude (dessinerPersonnage renvoie false).
+function poseAnimee(perso, base, phase) {
+  const sp = SPRITES[perso] || {};
+  const gauche = sp[base + "_left"], droite = sp[base + "_right"];
+  if (gauche && droite) {
+    return (Math.floor((_tempsAnim + phase) / 14) % 2 === 0) ? base + "_right" : base + "_left";
+  }
+  if (droite) return base + "_right";
+  if (gauche) return base + "_left";
+  return base;
+}
+
+// Vrai seulement si l'alternance ci-dessus dispose des 2 images pour perso/base -- sert à
+// désactiver le rebond de marche "à une image" (_rebondMarche) quand une vraie animation de
+// jambes existe déjà, pour ne pas cumuler les deux effets.
+function aAnimationReelle(perso, base) {
+  const sp = SPRITES[perso] || {};
+  return !!(sp[base + "_left"] && sp[base + "_right"]);
+}
+
+// Choisi à l'écran de démarrage (comme la difficulté) -- "heros" par défaut.
+let personnage = "heros";
+
+const stations = [
+  { id: "foule",     nom: "La Foule",     emoji: "🌀", x: 110, y: 230, queue: [] },
+  { id: "police",    nom: "Le Poste",     emoji: "🚓", x: 480, y: 110, queue: [] },
+  { id: "coffre",    nom: "Le Coffre",    emoji: "🔐", x: 480, y: 330, queue: [] },
+  { id: "poursuite", nom: "La Poursuite", emoji: "🚨", x: 300, y: 340, queue: [] },
+];
+
+function reconstruireStations() {
+  stations.forEach(s => { s.queue = []; });
+  VERBES.forEach((v, i) => stations[i % stations.length].queue.push(v));
+}
+reconstruireStations();
+
+let captures = 0;
+let vies = VIES_DEPART;
+// Pièce/argent ramassés dans La Poursuite (demande explicite 2026-11-18) -- juste un compteur
+// de performance, aucun effet sur les vies ni la capture des verbes.
+let score = 0;
+let verbeCourant = null;
+let miniJeuActif = null;
+let mapActive = false;
+let partieTerminee = false;
+// Choisi par l'élève avant de jouer (écran de choix tout en bas du script) : "facile" affiche
+// les pièges de La Foule dans une couleur différente des bonnes réponses, "difficile" accélère
+// leur déplacement -- "normal" n'a ni l'un ni l'autre (demande explicite de l'utilisateur).
+let difficulte = "normal";
+
+function formesVerbe(v) {
+  return [
+    { role: "base", label: "Base verbale", value: v.base },
+    { role: "preterit", label: "Prétérit", value: v.preterit },
+    { role: "participe", label: "Participe passé", value: v.participe },
+  ];
+}
+
+function melanger(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Silhouette générique (buste) pour les cartes du Poste -- 100% originale, aucun visage/
+// personnage identifiable. Surnoms fictifs pour l'ambiance (demande explicite : "modifie les
+// noms"), sans lien avec une œuvre existante.
+const SVG_MUGSHOT =
+  '<svg viewBox="0 0 40 40"><rect x="5" y="24" width="30" height="13" rx="5" fill="#5a6378"/>' +
+  '<circle cx="20" cy="14" r="10" fill="#7b86a0"/></svg>';
+const SURNOMS = [
+  "Le Discret", "Dédé la Combine", "Mystère n°1", "L'Ombre", "Suspect Alpha",
+  "Toto", "Suspect Bêta", "Le Fantôme", "Nino", "La Frite", "Riri", "Suspect Gamma",
+];
+
+function majHud() {
+  document.getElementById("hud-score").textContent =
+    `🎯 Capturés : ${captures} / ${N_TOTAL}` + (score > 0 ? `  ·  🪙 ${score}` : "");
+  const coeurs = [];
+  for (let i = 0; i < VIES_DEPART; i++) {
+    coeurs.push(`<span class="${i < vies ? '' : 'perdue'}">❤️</span>`);
+  }
+  document.getElementById("hud-vies").innerHTML = coeurs.join(" ");
+}
+
+function perdreVie() {
+  vies = Math.max(0, vies - 1);
+  majHud();
+  if (vies === 0) {
+    partieTerminee = true;
+    setTimeout(afficherDefaite, 400);
+  }
+}
+
+// Image <img> (pas canvas) pour les écrans HTML (défaite/victoire/choix) -- chaîne vide si
+// le sprite demandé est absent, l'écran reste sobre plutôt que de planter.
+function _imgTagPerso(perso, pose, taille) {
+  const src = SPRITES[perso] && SPRITES[perso][pose];
+  return src ? `<img src="${src}" style="height:${taille}px;display:block;margin:0 auto 10px;image-rendering:pixelated;">` : "";
+}
+
+function afficherDefaite() {
+  mapActive = false;
+  miniJeuActif = null;
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("titreJeu").textContent = "💀 Plus de vies !";
+  document.getElementById("zoneJeu").innerHTML =
+    `${_imgTagPerso(personnage, "assomme", 90)}
+     <p style="text-align:center;">Tu as capturé ${captures} / ${N_TOTAL} verbe(s).</p>
+     <button class="bouton" onclick="reinitialiserPartie()">🔄 Recommencer</button>`;
+  document.getElementById("feedbackJeu").textContent = "";
+}
+
+// --- CARTE PRINCIPALE ---
+const canvas = document.getElementById("carte");
+const ctx = canvas.getContext("2d");
+const joueur = { x: 300, y: 200, r: 10 };
+const VITESSE = 3;
+const touches = new Set();
+let faceGaucheMap = false;
+
+document.addEventListener("keydown", e => {
+  const k = e.key.toLowerCase();
+  touches.add(k);
+  if (k.startsWith("arrow") || k === " ") e.preventDefault();
+  if (k === "enter") {
+    if (mapActive) tenterEntrer();
+    else if (miniJeuActif === "foule") captureProcheFoule();
+  }
+});
+document.addEventListener("keyup", e => touches.delete(e.key.toLowerCase()));
+
+function stationProche() {
+  for (const s of stations) {
+    if (Math.hypot(joueur.x - s.x, joueur.y - s.y) < 46) return s;
+  }
+  return null;
+}
+
+function tenterEntrer() {
+  if (partieTerminee) return;
+  const s = stationProche();
+  if (!s || s.queue.length === 0) return;
+  verbeCourant = s.queue.shift();
+  mapActive = false;
+  miniJeuActif = s.id;
+  document.getElementById("overlay").style.display = "flex";
+  if (s.id === "foule") demarrerFoule();
+  else if (s.id === "police") demarrerPolice();
+  else if (s.id === "coffre") demarrerCoffre();
+  else demarrerPoursuite();
+}
+
+function finMiniJeu() {
+  captures++;
+  majHud();
+  document.getElementById("overlay").style.display = "none";
+  miniJeuActif = null;
+  mapActive = true;
+  if (stations.every(s => s.queue.length === 0)) {
+    setTimeout(afficherVictoire, 150);
+  }
+}
+
+function afficherVictoire() {
+  mapActive = false;
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("titreJeu").textContent = "🏁 Mission accomplie !";
+  document.getElementById("zoneJeu").innerHTML =
+    `${_imgTagPerso(personnage, "attraper", 90)}
+     <p style="text-align:center;font-size:40px;margin:10px 0;">${captures} / ${N_TOTAL}</p>
+     <p style="text-align:center;">Tous les verbes irréguliers du jour ont été capturés.</p>
+     <button class="bouton" onclick="reinitialiserPartie()">🔄 Recommencer</button>`;
+  document.getElementById("feedbackJeu").textContent = "";
+}
+
+function roundRect(c, x, y, w, h, r) {
+  c.beginPath();
+  c.moveTo(x + r, y);
+  c.arcTo(x + w, y, x + w, y + h, r);
+  c.arcTo(x + w, y + h, x, y + h, r);
+  c.arcTo(x, y + h, x, y, r);
+  c.arcTo(x, y, x + w, y, r);
+  c.closePath();
+}
+
+// --- DÉCOR URBAIN (généré une fois, formes fixes -- demande explicite : "il me faut un
+// milieu urbain", pas un village/une nature) : silhouette d'immeubles en fond, voies avec
+// marquage au sol, lampadaires, voitures garées -- tout en formes vectorielles, 100% original.
+const SKYLINE = Array.from({ length: 11 }, (_, i) => {
+  const w = 44 + Math.random() * 30;
+  return { x: i * 62 - 10, w, h: 16 + Math.random() * 26 };
+});
+const LAMPADAIRES = [{ x: 300, y: 70 }, { x: 40, y: 360 }, { x: 600, y: 230 }];
+const VOITURES = [{ x: 200, y: 345, c: "#c0392b" }, { x: 540, y: 260, c: "#2471a3" }];
+
+function dessinerImmeuble(c, s) {
+  const fait = s.queue.length === 0;
+  const accent = fait ? "#2ecc71" : "#ff2d78";
+  c.save();
+  c.shadowColor = accent;
+  c.shadowBlur = 16;
+  c.fillStyle = "#1b1f33";
+  c.strokeStyle = accent;
+  c.lineWidth = 3;
+  roundRect(c, s.x - 36, s.y - 46, 72, 72, 6);
+  c.fill(); c.stroke();
+  c.restore();
+
+  // fenêtres éclairées
+  c.fillStyle = "#ffe066";
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 2; col++) {
+      c.fillRect(s.x - 26 + col * 30, s.y - 36 + row * 22, 12, 14);
+    }
+  }
+  // porte
+  c.fillStyle = "#0b0b1a";
+  c.fillRect(s.x - 9, s.y + 8, 18, 18);
+
+  c.font = "22px sans-serif";
+  c.textAlign = "center";
+  c.fillText(s.emoji, s.x, s.y - 54);
+  c.font = "bold 13px sans-serif";
+  c.fillStyle = "#fff";
+  c.fillText(s.nom, s.x, s.y + 42);
+  c.fillStyle = accent;
+  c.fillText(fait ? "✓ fait" : `${s.queue.length} restant(s)`, s.x, s.y + 58);
+}
+
+function dessinerMap() {
+  // Sol (bitume)
+  ctx.fillStyle = "#23232f";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Silhouette d'immeubles en fond (bande du haut, purement décorative)
+  SKYLINE.forEach(b => {
+    ctx.fillStyle = "#171722";
+    ctx.fillRect(b.x, 0, b.w, b.h);
+    ctx.fillStyle = "rgba(255,224,102,0.5)";
+    for (let wx = b.x + 6; wx < b.x + b.w - 6; wx += 12) {
+      if (Math.random() < 0.6) ctx.fillRect(wx, b.h * 0.3, 3, 3);
+    }
+  });
+
+  // Voies + marquage au sol
+  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  ctx.lineWidth = 46;
+  ctx.beginPath(); ctx.moveTo(0, 170); ctx.lineTo(canvas.width, 170); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 300); ctx.lineTo(canvas.width, 300); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(220, 0); ctx.lineTo(220, canvas.height); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(420, 0); ctx.lineTo(420, canvas.height); ctx.stroke();
+  ctx.strokeStyle = "#ffd166";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([14, 12]);
+  [170, 300].forEach(y => { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); });
+  [220, 420].forEach(x => { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); });
+  ctx.setLineDash([]);
+
+  // Lampadaires
+  LAMPADAIRES.forEach(l => {
+    ctx.strokeStyle = "#444";
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(l.x, l.y); ctx.lineTo(l.x, l.y + 26); ctx.stroke();
+    ctx.save();
+    ctx.shadowColor = "#ffe066";
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#ffe066";
+    ctx.beginPath(); ctx.arc(l.x, l.y, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  });
+
+  // Voitures garées (décor)
+  VOITURES.forEach(v => {
+    ctx.fillStyle = v.c;
+    roundRect(ctx, v.x - 16, v.y - 8, 32, 16, 4);
+    ctx.fill();
+    ctx.fillStyle = "#ffe066";
+    ctx.fillRect(v.x - 14, v.y - 2, 3, 3);
+    ctx.fillRect(v.x + 11, v.y - 2, 3, 3);
+  });
+
+  stations.forEach(s => dessinerImmeuble(ctx, s));
+
+  const enMouvementMap = touches.has("arrowleft") || touches.has("q") || touches.has("arrowright") ||
+    touches.has("d") || touches.has("arrowup") || touches.has("z") || touches.has("arrowdown") ||
+    touches.has("s");
+  const poseMap = enMouvementMap ? poseAnimee(personnage, "marche", 0) : "repos";
+  if (!dessinerPersonnage(ctx, joueur.x, joueur.y, personnage, poseMap, faceGaucheMap, 40)) {
+    ctx.save();
+    ctx.shadowColor = "#00eaff";
+    ctx.shadowBlur = 14;
+    ctx.fillStyle = "#00eaff";
+    ctx.beginPath();
+    ctx.arc(joueur.x, joueur.y, joueur.r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  const prox = stationProche();
+  const info = document.getElementById("info-action");
+  if (prox && prox.queue.length) info.textContent = `⏎ Entrée pour entrer dans « ${prox.nom} »`;
+  else if (prox) info.textContent = `✅ ${prox.nom} — terminé`;
+  else info.textContent = "";
+}
+
+// --- MINI-JEU 1 : LA FOULE ---
+let foule = null;
+
+function demarrerFoule() {
+  document.getElementById("titreJeu").textContent =
+    `🌀 La Foule — capture les formes de "${verbeCourant.base.toUpperCase()}"`;
+  document.getElementById("zoneJeu").innerHTML =
+    `<canvas id="foule-canvas" width="440" height="280"></canvas>
+     <p class="aide">Flèches/ZQSD pour te déplacer, Entrée au contact d'un mot pour le capturer.</p>`;
+  document.getElementById("feedbackJeu").textContent = "";
+
+  const formes = formesVerbe(verbeCourant);
+  const valeursUniques = [...new Set(formes.map(f => f.value.toLowerCase()))];
+  // Distracteurs = vrais verbes à l'orthographe proche, précalculés côté Python (voir
+  // generer_verbquest_html/_decoys_reels_vi) -- jamais de mots inventés (demande explicite).
+  let decoys = [];
+  ["base", "preterit", "participe"].forEach(r => {
+    (verbeCourant.decoys[r] || []).forEach(d => decoys.push(d.toLowerCase()));
+  });
+  decoys = melanger([...new Set(decoys)].filter(d => !valeursUniques.includes(d))).slice(0, 9);
+  const tousLesMots = [...valeursUniques, ...decoys];
+
+  const multVitesse = difficulte === "difficile" ? 2.1 : 1;
+  foule = {
+    cursor: { x: 220, y: 140 },
+    faceGauche: false,
+    mots: tousLesMots.map(val => ({
+      val,
+      estCorrect: valeursUniques.includes(val),
+      capture: false,
+      x: 30 + Math.random() * 380,
+      y: 30 + Math.random() * 220,
+      vx: (Math.random() - 0.5) * 1.4 * multVitesse,
+      vy: (Math.random() - 0.5) * 1.4 * multVitesse,
+    })),
+    rolesRestants: new Set(formes.map(f => f.role)),
+  };
+}
+
+function dessinerFoule() {
+  const cv = document.getElementById("foule-canvas");
+  if (!cv) return;
+  const c = cv.getContext("2d");
+  c.fillStyle = "#0b0b1a";
+  c.fillRect(0, 0, cv.width, cv.height);
+
+  foule.mots.forEach(m => {
+    m.x += m.vx; m.y += m.vy;
+    if (m.x < 24 || m.x > cv.width - 24) m.vx *= -1;
+    if (m.y < 16 || m.y > cv.height - 16) m.vy *= -1;
+    m.x = Math.max(24, Math.min(cv.width - 24, m.x));
+    m.y = Math.max(16, Math.min(cv.height - 16, m.y));
+    if (m.capture) return;
+    c.font = "bold 13px monospace";
+    c.textAlign = "center";
+    // Couleur distinctive des pièges réservée au mode Facile (demande explicite) -- en Normal
+    // et Difficile, tous les mots ont la même couleur, aucun indice visuel.
+    c.fillStyle = difficulte === "facile" ? (m.estCorrect ? "#00eaff" : "#9b8cff") : "#e6e6e6";
+    c.fillText(m.val, m.x, m.y);
+  });
+
+  if (!dessinerPersonnage(c, foule.cursor.x, foule.cursor.y, personnage,
+      poseAnimee(personnage, "marche", foule.cursor.x), foule.faceGauche, 34)) {
+    // Repli vectoriel (corps + tête) si le sprite n'est pas disponible.
+    c.save();
+    c.shadowColor = "#ff2d78";
+    c.shadowBlur = 10;
+    c.fillStyle = "#ff2d78";
+    c.beginPath();
+    c.arc(foule.cursor.x, foule.cursor.y, 7, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = "#2a0b18";
+    c.beginPath();
+    c.arc(foule.cursor.x, foule.cursor.y, 3, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  }
+}
+
+function captureProcheFoule() {
+  if (!foule) return;
+  let cible = null, dMin = 22;
+  foule.mots.forEach(m => {
+    if (m.capture) return;
+    const d = Math.hypot(foule.cursor.x - m.x, foule.cursor.y - m.y);
+    if (d < dMin) { dMin = d; cible = m; }
+  });
+  if (!cible) return;
+  if (!cible.estCorrect) {
+    perdreVie();
+    document.getElementById("feedbackJeu").innerHTML =
+      '<span class="ko">❌ Pas la bonne forme — continue de chercher.</span>';
+    return;
+  }
+  cible.capture = true;
+  const totalRoles = formesVerbe(verbeCourant).length;
+  formesVerbe(verbeCourant).forEach(f => {
+    if (f.value.toLowerCase() === cible.val) foule.rolesRestants.delete(f.role);
+  });
+  const faites = totalRoles - foule.rolesRestants.size;
+  document.getElementById("feedbackJeu").innerHTML =
+    `<span class="ok">✅ « ${cible.val} » capturé ! (${faites}/${totalRoles})</span>`;
+  if (foule.rolesRestants.size === 0) setTimeout(finMiniJeu, 500);
+}
+
+// --- MINI-JEU 2 : LE POSTE (MUGSHOTS) ---
+let policeRoles = null, policeRolesFaits = null, policeAttendu = null;
+
+function demarrerPolice() {
+  policeRoles = formesVerbe(verbeCourant);
+  policeRolesFaits = new Set();
+  prochainRolePolice();
+}
+
+function prochainRolePolice() {
+  const restants = policeRoles.filter(f => !policeRolesFaits.has(f.role));
+  if (restants.length === 0) { finMiniJeu(); return; }
+  const r = restants[0];
+  policeAttendu = r.value.toLowerCase();
+  document.getElementById("titreJeu").textContent = `🚓 Le Poste — TO ${verbeCourant.base.toUpperCase()}`;
+  const valeursUniquesP = new Set(policeRoles.map(f => f.value.toLowerCase()));
+  const decoys = melanger((verbeCourant.decoys[r.role] || []).filter(
+    d => !valeursUniquesP.has(d.toLowerCase())
+  )).slice(0, 5);
+  const options = melanger([r.value, ...decoys]);
+  const surnoms = melanger(SURNOMS).slice(0, options.length);
+  document.getElementById("zoneJeu").innerHTML =
+    `<p class="consigne">Qui est <b>${r.label.toUpperCase()}</b> ?</p>
+     <div class="mugshots">${options.map((o, i) =>
+        `<div class="mugshot" onclick="repondrePolice(this.dataset.v)" data-v="${o.replace(/"/g, '&quot;')}">
+           <div class="surnom">${surnoms[i]}</div>
+           <div class="visage">${SVG_MUGSHOT}</div>
+           <div class="etiquette">${o}</div></div>`
+      ).join("")}</div>`;
+  document.getElementById("feedbackJeu").textContent = "";
+}
+
+function repondrePolice(valeur) {
+  if (valeur.toLowerCase() === policeAttendu) {
+    policeRoles.forEach(f => {
+      if (f.value.toLowerCase() === policeAttendu) policeRolesFaits.add(f.role);
+    });
+    document.getElementById("feedbackJeu").innerHTML = '<span class="ok">✅ Identifié !</span>';
+    setTimeout(prochainRolePolice, 500);
+  } else {
+    perdreVie();
+    document.getElementById("feedbackJeu").innerHTML =
+      "<span class=\"ko\">❌ Ce n'est pas lui — regarde encore.</span>";
+  }
+}
+
+// --- MINI-JEU 3 : LE COFFRE ---
+let coffreRoles = null, coffreRolesFaits = null, coffreAttendu = null;
+
+function demarrerCoffre() {
+  coffreRoles = formesVerbe(verbeCourant);
+  coffreRolesFaits = new Set();
+  prochainRoleCoffre();
+}
+
+function prochainRoleCoffre() {
+  const restants = coffreRoles.filter(f => !coffreRolesFaits.has(f.role));
+  if (restants.length === 0) { finMiniJeu(); return; }
+  const r = restants[0];
+  coffreAttendu = r.value.toLowerCase();
+  document.getElementById("titreJeu").textContent = `🔐 Le Coffre — TO ${verbeCourant.base.toUpperCase()}`;
+  document.getElementById("zoneJeu").innerHTML =
+    `<p class="consigne">Code attendu : <b>${r.label.toUpperCase()}</b></p>
+     <input type="text" id="codeCoffre" autocomplete="off" placeholder="Tape le code...">
+     <button class="bouton" onclick="validerCoffre()">🔓 Déverrouiller</button>`;
+  document.getElementById("feedbackJeu").textContent = "";
+  setTimeout(() => {
+    const inp = document.getElementById("codeCoffre");
+    if (inp) {
+      inp.focus();
+      inp.addEventListener("keydown", e => { if (e.key === "Enter") validerCoffre(); });
+    }
+  }, 30);
+}
+
+function validerCoffre() {
+  const champ = document.getElementById("codeCoffre");
+  const val = (champ.value || "").trim().toLowerCase();
+  if (val === coffreAttendu) {
+    coffreRoles.forEach(f => {
+      if (f.value.toLowerCase() === coffreAttendu) coffreRolesFaits.add(f.role);
+    });
+    document.getElementById("feedbackJeu").innerHTML = '<span class="ok">✅ Coffre déverrouillé !</span>';
+    setTimeout(prochainRoleCoffre, 500);
+  } else {
+    perdreVie();
+    document.getElementById("feedbackJeu").innerHTML =
+      '<span class="ko">❌ Code incorrect, réessaie.</span>';
+  }
+}
+
+// --- MINI-JEU 4 : LA POURSUITE (demande explicite de l'utilisateur, 2026-11-18 : "héros
+// poursuivi par la police, il doit attraper des verbes qui arrivent vers lui tout en évitant
+// les faux verbes, s'il échoue il est arrêté" -- puis, vue repensée en défilement latéral 2D
+// avec palmiers/rue qui défilent -- puis, précision finale : "quelque chose de type Mario avec
+// des sauts d'esquive et un mouvement 'attraper' quand le méchant avec le bon verbe au-dessus
+// de sa tête apparaît". Mécanique : un seul sol, des "méchants" (silhouette originale, pas
+// d'IP tierce) arrivent de la droite avec leur forme écrite au-dessus de la tête -- sauter
+// (Haut/Espace/Z) les esquive tous (bons ET mauvais, aucune pénalité mais aucune capture non
+// plus) ; rester au sol et les laisser venir déclenche soit l'arrestation (mauvaise forme),
+// soit la capture automatique (pose "attraper") si c'est la bonne.) ---
+let poursuite = null;
+const POURSUITE_LARGEUR = 500, POURSUITE_HAUTEUR = 320;
+const POURSUITE_SOL = 240;
+const POURSUITE_HERO_X = 110;
+const POURSUITE_GRAVITE = 0.6;
+const POURSUITE_SEUIL_SAUT = 26; // hauteur au-dessus du sol = considéré comme "sauté par-dessus"
+
+function demarrerPoursuite() {
+  document.getElementById("titreJeu").textContent =
+    `🚨 La Poursuite — attrape les formes de "${verbeCourant.base.toUpperCase()}"`;
+  document.getElementById("zoneJeu").innerHTML =
+    `<canvas id="poursuite-canvas" width="${POURSUITE_LARGEUR}" height="${POURSUITE_HAUTEUR}"></canvas>
+     <p class="aide">Haut/Espace/Z pour sauter (esquiver) — reste au sol pour attraper la bonne forme, mais gare aux pièges !</p>`;
+  document.getElementById("feedbackJeu").textContent = "";
+  _lancerRondePoursuite();
+}
+
+function _lancerRondePoursuite() {
+  const formes = formesVerbe(verbeCourant);
+  const valeursUniques = [...new Set(formes.map(f => f.value.toLowerCase()))];
+  let decoys = [];
+  ["base", "preterit", "participe"].forEach(r => {
+    (verbeCourant.decoys[r] || []).forEach(d => decoys.push(d.toLowerCase()));
+  });
+  decoys = melanger([...new Set(decoys)].filter(d => !valeursUniques.includes(d))).slice(0, 4);
+  const toutesLesValeurs = [...valeursUniques, ...decoys];
+  const typesMechants = Object.keys(SPRITES.mechants || {});
+  const typesPolicier = Object.keys(SPRITES.policiers || {});
+  const tireType = (liste) => liste.length ? liste[Math.floor(Math.random() * liste.length)] : null;
+  const mechants = toutesLesValeurs.map((val, i) => ({
+    val,
+    estCorrect: valeursUniques.includes(val),
+    x: POURSUITE_LARGEUR + 60 + i * 160,
+    traitee: false,
+    type: tireType(typesMechants),
+  }));
+  // Objets ramassables (demande explicite 2026-11-18, esprit Double Dragon : "des éléments
+  // interactifs pour récupérer des bonus de vie") -- plus espacés que les méchants pour rester
+  // occasionnels, pas un filet de sécurité.
+  const objets = [0, 1, 2].map(i => ({
+    type: tirerTypeObjetPoursuite(),
+    x: POURSUITE_LARGEUR + 320 + i * 460,
+  }));
+  poursuite = {
+    heroY: POURSUITE_SOL,
+    vitesseY: 0,
+    enSaut: false,
+    animAttraper: 0,
+    defilement: 0,
+    buffVitesse: 0,
+    buffSaut: 0,
+    mechants,
+    objets,
+    policierType: tireType(typesPolicier),
+    rolesRestants: new Set(formes.map(f => f.role)),
+  };
+}
+
+function _arreterHeros(msg) {
+  perdreVie();
+  document.getElementById("feedbackJeu").innerHTML = `<span class="ko">${msg}</span>`;
+  _lancerRondePoursuite();
+}
+
+// Petit palmier vectoriel original (tronc + palmes) -- décor, pas une marque.
+function dessinerPalmier(c, x, y) {
+  c.strokeStyle = "#6b4423";
+  c.lineWidth = 4;
+  c.beginPath();
+  c.moveTo(x, y + 26);
+  c.quadraticCurveTo(x - 3, y + 10, x + 3, y);
+  c.stroke();
+  c.fillStyle = "#2e8b3d";
+  [[-10, -5], [10, -5], [0, -11], [-7, 3], [7, 3]].forEach(([dx, dy]) => {
+    c.save();
+    c.translate(x + 3 + dx, y + dy);
+    c.rotate(Math.atan2(dy, dx));
+    c.beginPath();
+    c.ellipse(0, 0, 10, 4, 0, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  });
+}
+
+// Objets ramassables de La Poursuite (sprites fournis -- coeur/full_life/speed/jump/coin/
+// money, demande explicite 2026-11-18) -- repli emoji si un sprite venait à manquer.
+const OBJETS_EMOJI_REPLI = {
+  coeur: "❤️", full_life: "💉", speed: "⚡", jump: "🦘", coin: "🪙", money: "💵",
+};
+
+function dessinerObjetPoursuite(c, x, y, type) {
+  if (!dessinerPersonnage(c, x, y - 12, "objets", type, false, 30)) {
+    c.font = "22px sans-serif";
+    c.textAlign = "center";
+    c.fillText(OBJETS_EMOJI_REPLI[type] || "❓", x, y - 6);
+  }
+}
+
+// Tire un type d'objet au hasard parmi ceux dont le sprite est fourni, pondéré pour que les
+// bonus les plus forts (vies complètes) restent rares et que score/petit bonus de vie soient
+// les plus fréquents.
+const POIDS_OBJETS_VERBQUEST = { coeur: 5, coin: 4, speed: 2, jump: 2, money: 2, full_life: 1 };
+function tirerTypeObjetPoursuite() {
+  const dispo = Object.keys(POIDS_OBJETS_VERBQUEST).filter(t => SPRITES.objets && SPRITES.objets[t]);
+  if (!dispo.length) return "coeur";
+  const total = dispo.reduce((s, t) => s + POIDS_OBJETS_VERBQUEST[t], 0);
+  let r = Math.random() * total;
+  for (const t of dispo) {
+    r -= POIDS_OBJETS_VERBQUEST[t];
+    if (r <= 0) return t;
+  }
+  return dispo[dispo.length - 1];
+}
+
+// Applique l'effet d'un objet ramassé -- durées de buff en frames (~6s à 60 img/s).
+function appliquerEffetObjetPoursuite(type) {
+  if (type === "coeur") {
+    if (vies < VIES_DEPART) { vies++; majHud(); }
+    document.getElementById("feedbackJeu").innerHTML = '<span class="ok">❤️ +1 vie !</span>';
+  } else if (type === "full_life") {
+    vies = VIES_DEPART;
+    majHud();
+    document.getElementById("feedbackJeu").innerHTML = '<span class="ok">💉 Vies complètes !</span>';
+  } else if (type === "speed") {
+    poursuite.buffVitesse = 360;
+    document.getElementById("feedbackJeu").innerHTML = '<span class="ok">⚡ Plus de temps pour réagir !</span>';
+  } else if (type === "jump") {
+    poursuite.buffSaut = 360;
+    document.getElementById("feedbackJeu").innerHTML = '<span class="ok">🦘 Saut amélioré !</span>';
+  } else if (type === "coin") {
+    score += 10;
+    majHud();
+    document.getElementById("feedbackJeu").innerHTML = '<span class="ok">🪙 +10</span>';
+  } else if (type === "money") {
+    score += 25;
+    majHud();
+    document.getElementById("feedbackJeu").innerHTML = '<span class="ok">💵 +25</span>';
+  }
+}
+
+// Les sprites fournis n'ont qu'UNE pose de marche (pas de 2e image "jambe opposée") -- on
+// simule quand même un mouvement de jambes/pas en faisant légèrement "rebondir" tout le
+// personnage verticalement pendant qu'il avance (vieille astuce d'animation 2D à une seule
+// image), plutôt qu'un sprite figé qui glisse sans bouger. `phase` décale chaque silhouette
+// pour qu'elles ne rebondissent pas toutes exactement en même temps.
+function _rebondMarche(phase) {
+  return Math.sin((_tempsAnim + phase) * 0.15) * 4;
+}
+
+// "Méchant" générique original (corps + yeux + pieds), aucune ressemblance avec un personnage
+// existant -- sa forme écrite flotte au-dessus de sa tête, dans une étiquette arrondie.
+function dessinerMechant(c, x, y, val, estCorrect, type) {
+  y += _rebondMarche(x * 2);
+  if (!dessinerPersonnage(c, x, y, "mechants", type, false, 50)) {
+    // Repli vectoriel (silhouette générique) si aucun sprite fourni pour ce type.
+    c.fillStyle = "#6b2b5a";
+    c.beginPath(); c.ellipse(x, y - 15, 19, 22, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = "#4a1d3f";
+    c.beginPath(); c.ellipse(x - 10, y + 3, 7, 6, 0, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.ellipse(x + 10, y + 3, 7, 6, 0, 0, Math.PI * 2); c.fill();
+    c.fillStyle = "#fff";
+    c.beginPath(); c.arc(x - 7, y - 19, 4.5, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(x + 7, y - 19, 4.5, 0, Math.PI * 2); c.fill();
+    c.fillStyle = "#111";
+    c.beginPath(); c.arc(x - 7, y - 19, 2, 0, Math.PI * 2); c.fill();
+    c.beginPath(); c.arc(x + 7, y - 19, 2, 0, Math.PI * 2); c.fill();
+  }
+
+  c.font = "bold 16px monospace";
+  c.textAlign = "center";
+  const largeurTag = Math.max(34, c.measureText(val).width + 18);
+  const yTag = y - 52;
+  c.fillStyle = difficulte === "facile" ? (estCorrect ? "#00eaff" : "#9b8cff") : "#2a2a38";
+  roundRect(c, x - largeurTag / 2, yTag - 13, largeurTag, 22, 8);
+  c.fill();
+  c.fillStyle = "#fff";
+  c.fillText(val, x, yTag + 4);
+}
+
+function dessinerDecorPoursuite(c, cv) {
+  c.fillStyle = "#1a2234";
+  c.fillRect(0, 0, cv.width, 30);
+  c.fillStyle = "#2a2a38";
+  c.fillRect(0, 30, cv.width, cv.height - 30);
+
+  const decalPalmier = (poursuite.defilement * 1.6) % 170;
+  for (let i = -1; i < 4; i++) {
+    dessinerPalmier(c, i * 170 - decalPalmier + 40, 18);
+  }
+
+  c.strokeStyle = "#ffd166";
+  c.lineWidth = 3;
+  c.setLineDash([20, 18]);
+  c.lineDashOffset = -poursuite.defilement;
+  c.beginPath();
+  c.moveTo(0, POURSUITE_SOL + 26);
+  c.lineTo(cv.width, POURSUITE_SOL + 26);
+  c.stroke();
+  c.setLineDash([]);
+}
+
+function dessinerPoursuite() {
+  const cv = document.getElementById("poursuite-canvas");
+  if (!cv) return;
+  const c = cv.getContext("2d");
+
+  // Bonus "speed" (chaussure ailée) : ralentit temporairement le défilement -- plus de temps
+  // pour réagir, perçu comme "le héros va plus vite" (même effet pour le joueur, plus simple à
+  // coder qu'un vrai déplacement horizontal du héros, qui est fixe sur cet axe).
+  const vitesseBase = difficulte === "difficile" ? 2.0 : 1.3;
+  const vitesse = vitesseBase * (poursuite.buffVitesse > 0 ? 0.5 : 1);
+  poursuite.defilement += vitesse;
+  if (poursuite.buffVitesse > 0) poursuite.buffVitesse--;
+  if (poursuite.buffSaut > 0) poursuite.buffSaut--;
+
+  // Physique du saut (gravité simple, façon plateforme).
+  poursuite.vitesseY += POURSUITE_GRAVITE;
+  poursuite.heroY += poursuite.vitesseY;
+  if (poursuite.heroY >= POURSUITE_SOL) {
+    poursuite.heroY = POURSUITE_SOL;
+    poursuite.vitesseY = 0;
+    poursuite.enSaut = false;
+  }
+  if (poursuite.animAttraper > 0) poursuite.animAttraper--;
+
+  poursuite.mechants.forEach(m => { m.x -= vitesse; });
+
+  for (const m of poursuite.mechants) {
+    if (!m.traitee && m.x > POURSUITE_HERO_X - 16 && m.x < POURSUITE_HERO_X + 16) {
+      m.traitee = true;
+      const aSaute = (POURSUITE_SOL - poursuite.heroY) > POURSUITE_SEUIL_SAUT;
+      if (aSaute) continue; // esquivé en sautant -- ni gain ni perte, qu'il soit bon ou mauvais
+      if (!m.estCorrect) {
+        _arreterHeros(`🚨 « ${m.val} » n'existe pas — il fallait sauter ! Arrêté, on recommence.`);
+        return;
+      }
+      poursuite.animAttraper = 16;
+      formesVerbe(verbeCourant).forEach(f => {
+        if (f.value.toLowerCase() === m.val) poursuite.rolesRestants.delete(f.role);
+      });
+      m.capture = true;
+      const totalRoles = formesVerbe(verbeCourant).length;
+      const faites = totalRoles - poursuite.rolesRestants.size;
+      document.getElementById("feedbackJeu").innerHTML =
+        `<span class="ok">✅ « ${m.val} » attrapé ! (${faites}/${totalRoles})</span>`;
+      if (poursuite.rolesRestants.size === 0) { setTimeout(finMiniJeu, 400); return; }
+    }
+  }
+
+  // Les méchants capturés disparaissent ; les autres, sortis à gauche (capturés ou esquivés),
+  // reviennent de la droite (flux continu tant que la manche n'est pas terminée).
+  poursuite.mechants = poursuite.mechants.filter(m => !m.capture);
+  const typesMechantsDispo = Object.keys(SPRITES.mechants || {});
+  poursuite.mechants.forEach(m => {
+    if (m.x < -30) {
+      m.x = POURSUITE_LARGEUR + 40 + Math.random() * 120;
+      m.traitee = false;
+      if (typesMechantsDispo.length) {
+        m.type = typesMechantsDispo[Math.floor(Math.random() * typesMechantsDispo.length)];
+      }
+    }
+  });
+
+  // Objets ramassables : effet appliqué automatiquement au contact (pas besoin de sauter ni
+  // d'éviter, c'est toujours un gain). Recyclé loin à droite dès qu'il est ramassé OU
+  // simplement sorti à gauche sans avoir été touché (pool fixe réutilisé, pas de création/
+  // suppression de tableau).
+  const _respawnObjet = (o) => {
+    o.x = POURSUITE_LARGEUR + 400 + Math.random() * 200;
+    o.type = tirerTypeObjetPoursuite();
+  };
+  poursuite.objets.forEach(o => {
+    o.x -= vitesse;
+    if (o.x > POURSUITE_HERO_X - 18 && o.x < POURSUITE_HERO_X + 18) {
+      appliquerEffetObjetPoursuite(o.type);
+      _respawnObjet(o);
+    } else if (o.x < -30) {
+      _respawnObjet(o);
+    }
+  });
+
+  dessinerDecorPoursuite(c, cv);
+
+  poursuite.objets.forEach(o => dessinerObjetPoursuite(c, o.x, POURSUITE_SOL + 10, o.type));
+
+  poursuite.mechants.forEach(m => dessinerMechant(c, m.x, POURSUITE_SOL + 10, m.val, m.estCorrect, m.type));
+
+  const yPolicier = POURSUITE_SOL + _rebondMarche(500);
+  if (!dessinerPersonnage(c, POURSUITE_HERO_X - 56, yPolicier, "policiers", poursuite.policierType, false, 46)) {
+    const couleurGyro = Math.floor(Date.now() / 250) % 2 === 0 ? "#ff2d2d" : "#2d6bff";
+    c.save();
+    c.shadowColor = couleurGyro;
+    c.shadowBlur = 12;
+    c.fillStyle = "#222";
+    c.fillRect(POURSUITE_HERO_X - 56 - 9, yPolicier - 6, 18, 12);
+    c.fillStyle = couleurGyro;
+    c.fillRect(POURSUITE_HERO_X - 56 - 4, yPolicier - 10, 8, 4);
+    c.restore();
+  }
+
+  const poseHero = poursuite.animAttraper > 0 ? "attraper" : poseAnimee(personnage, "course", 0);
+  // Le rebond de marche "à une image" ne s'applique que si le héros n'a PAS déjà une vraie
+  // animation de jambes (2 images) pour "course", et qu'il court vraiment au sol -- pas
+  // pendant le saut (déjà animé par la vraie physique) ni pendant la pose "attraper" (figée).
+  const yHeroAffiche = poursuite.heroY +
+    (!aAnimationReelle(personnage, "course") && !poursuite.enSaut && poursuite.animAttraper === 0
+      ? _rebondMarche(0) : 0);
+  if (!dessinerPersonnage(c, POURSUITE_HERO_X, yHeroAffiche, personnage, poseHero, false, 54)) {
+    c.save();
+    c.shadowColor = "#00eaff";
+    c.shadowBlur = 10;
+    c.fillStyle = "#00eaff";
+    c.beginPath(); c.arc(POURSUITE_HERO_X, yHeroAffiche, 7, 0, Math.PI * 2); c.fill();
+    c.fillStyle = "#06202a";
+    c.beginPath(); c.arc(POURSUITE_HERO_X, yHeroAffiche, 3, 0, Math.PI * 2); c.fill();
+    c.restore();
+  }
+}
+
+// --- BOUCLE PRINCIPALE ---
+function boucle() {
+  _tempsAnim++;
+  let dx = 0, dy = 0;
+  if (touches.has("arrowleft") || touches.has("q")) dx -= 1;
+  if (touches.has("arrowright") || touches.has("d")) dx += 1;
+  if (touches.has("arrowup") || touches.has("z")) dy -= 1;
+  if (touches.has("arrowdown") || touches.has("s")) dy += 1;
+  const norme = Math.hypot(dx, dy) || 1;
+
+  if (mapActive) {
+    if (dx || dy) {
+      joueur.x = Math.min(630, Math.max(10, joueur.x + (dx / norme) * VITESSE));
+      joueur.y = Math.min(390, Math.max(10, joueur.y + (dy / norme) * VITESSE));
+      if (dx) faceGaucheMap = dx < 0;
+    }
+    dessinerMap();
+  } else if (miniJeuActif === "foule" && foule) {
+    if (dx || dy) {
+      foule.cursor.x = Math.min(420, Math.max(20, foule.cursor.x + (dx / norme) * 3.4));
+      foule.cursor.y = Math.min(264, Math.max(16, foule.cursor.y + (dy / norme) * 3.4));
+      if (dx) foule.faceGauche = dx < 0;
+    }
+    dessinerFoule();
+  } else if (miniJeuActif === "poursuite" && poursuite) {
+    if (!poursuite.enSaut && (dy < 0 || touches.has(" "))) {
+      // Bonus "jump" (ressort) : saut plus haut/plus long pendant sa durée.
+      poursuite.vitesseY = poursuite.buffSaut > 0 ? -13 : -9;
+      poursuite.enSaut = true;
+    }
+    dessinerPoursuite();
+  }
+  requestAnimationFrame(boucle);
+}
+
+// --- ÉCRAN TITRE, PLEIN ÉCRAN, RECOMMENCER, QUITTER (demande explicite 2026-11-18) ---
+function basculerPleinEcran() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen();
+  }
+}
+
+// Remet la partie à zéro (vies, captures, stations, position du héros) SANS revenir à l'écran
+// titre -- garde le personnage/la difficulté déjà choisis. Appelable à tout moment (bouton
+// toujours visible, même pendant un mini-jeu).
+function reinitialiserPartie() {
+  captures = 0;
+  vies = VIES_DEPART;
+  score = 0;
+  partieTerminee = false;
+  verbeCourant = null;
+  miniJeuActif = null;
+  foule = null;
+  poursuite = null;
+  joueur.x = 300;
+  joueur.y = 200;
+  reconstruireStations();
+  document.getElementById("overlay").style.display = "none";
+  mapActive = true;
+  majHud();
+}
+
+// Repasse par l'écran titre (re-choix du personnage et de la difficulté) -- appelable à tout
+// moment, y compris en plein mini-jeu.
+function quitterVersEcranTitre() {
+  reinitialiserPartie();
+  mapActive = false;
+  afficherEcranTitre();
+}
+
+function afficherEcranTitre() {
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("titreJeu").textContent = "🌃 Get The A : VI";
+  document.getElementById("zoneJeu").innerHTML =
+    `<p style="text-align:center;">Explore la ville et capture les formes des verbes
+     irréguliers du jour dans les 4 lieux de la carte.</p>
+     <button class="bouton" onclick="afficherChoixPersonnage()">▶ Commencer</button>`;
+  document.getElementById("feedbackJeu").textContent = "";
+}
+
+// --- ÉCRANS DE DÉMARRAGE (personnage puis difficulté) ---
+function choisirPersonnage(p) {
+  personnage = p;
+  afficherChoixDifficulte();
+}
+
+function afficherChoixPersonnage() {
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("titreJeu").textContent = "🧑 Choisis ton personnage";
+  document.getElementById("zoneJeu").innerHTML =
+    `<div style="display:flex; gap:14px; justify-content:center; flex-wrap:wrap;">
+       <button class="bouton" style="width:auto; padding:14px 22px;" onclick="choisirPersonnage('heros')">
+         ${_imgTagPerso('heros', 'repos', 70)}Héros</button>
+       <button class="bouton" style="width:auto; padding:14px 22px;" onclick="choisirPersonnage('heroine')">
+         ${_imgTagPerso('heroine', 'repos', 70)}Héroïne</button>
+     </div>`;
+  document.getElementById("feedbackJeu").textContent = "";
+}
+
+function choisirDifficulte(d) {
+  difficulte = d;
+  document.getElementById("overlay").style.display = "none";
+  mapActive = true;
+}
+
+function afficherChoixDifficulte() {
+  document.getElementById("overlay").style.display = "flex";
+  document.getElementById("titreJeu").textContent = "🎮 Choisis ta difficulté";
+  document.getElementById("zoneJeu").innerHTML =
+    `<button class="bouton" onclick="choisirDifficulte('facile')">🟢 Facile — les pièges sont surlignés</button>
+     <button class="bouton" onclick="choisirDifficulte('normal')">🟡 Normal</button>
+     <button class="bouton" onclick="choisirDifficulte('difficile')">🔴 Difficile — la foule va plus vite</button>`;
+  document.getElementById("feedbackJeu").textContent = "";
+}
+
+majHud();
+dessinerMap();
+afficherEcranTitre();
+boucle();
+</script>
+</body>
+</html>
