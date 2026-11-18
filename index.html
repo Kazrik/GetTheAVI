@@ -117,7 +117,7 @@ const VIES_DEPART = 5;
 // Sprites fournis par l'utilisateur (silhouettes originales découpées depuis une planche
 // nettoyée de toute marque/violence, 2026-11-18) -- {} si le dossier assets_verbquest/ est
 // vide, auquel cas tout le rendu retombe sur les formes vectorielles déjà en place.
-const SPRITES = {"heros": {"assomme": "assets/heros_assomme.png", "attraper": "assets/heros_attraper.png", "course_left": "assets/heros_course_left.png", "course_right": "assets/heros_course_right.png", "essouffle": "assets/heros_essouffle.png", "marche_left": "assets/heros_marche_left.png", "marche_right": "assets/heros_marche_right.png", "recule_left": "assets/heros_recule_left.png", "recule_right": "assets/heros_recule_right.png", "repos": "assets/heros_repos.png"}, "heroine": {"assomme": "assets/heroine_assomme.png", "attraper": "assets/heroine_attraper.png", "course_left": "assets/heroine_course_left.png", "course_right": "assets/heroine_course_right.png", "essouffle": "assets/heroine_essouffle.png", "marche_left": "assets/heroine_marche_left.png", "marche_right": "assets/heroine_marche_right.png", "recule_left": "assets/heroine_recule_left.png", "recule_right": "assets/heroine_recule_right.png", "repos": "assets/heroine_repos.png"}, "policiers": {"policier1": "assets/policier1_marche.png", "policier2": "assets/policier2_marche.png"}, "mechants": {"gangster1": "assets/gangster1_marche.png", "gangster2": "assets/gangster2_marche.png", "mobster1": "assets/mobster1_marche.png", "mobster2": "assets/mobster2_marche.png", "thug1": "assets/thug1_marche.png", "thug2": "assets/thug2_marche.png", "rival1": "assets/rival1_marche.png", "rival2": "assets/rival2_marche.png", "gangs_chief1": "assets/gangs_chief1_marche.png", "gangs_chief2": "assets/gangs_chief2_marche.png"}, "objets": {"coeur": "assets/coeur.png", "full_life": "assets/full_life.png", "speed": "assets/speed.png", "jump": "assets/jump.png", "coin": "assets/coin.png", "money": "assets/money.png"}, "tuiles": {"sol": "assets/tiles/sol.png", "sol_marque": "assets/tiles/sol_marque.png", "sol_ligne": "assets/tiles/sol_ligne.png", "feu_signalisation": "assets/tiles/feu_signalisation.png", "mur_haut": "assets/tiles/mur_haut.png", "mur_corps": "assets/tiles/mur_corps.png", "mur_bas": "assets/tiles/mur_bas.png", "porte": "assets/tiles/porte.png", "arbre_vert": "assets/tiles/arbre_vert.png", "arbre_orange": "assets/tiles/arbre_orange.png"}};
+const SPRITES = {"heros": {"assomme": "assets/heros_assomme.png", "attraper": "assets/heros_attraper.png", "course_left": "assets/heros_course_left.png", "course_right": "assets/heros_course_right.png", "essouffle": "assets/heros_essouffle.png", "marche_left": "assets/heros_marche_left.png", "marche_right": "assets/heros_marche_right.png", "recule_left": "assets/heros_recule_left.png", "recule_right": "assets/heros_recule_right.png", "repos": "assets/heros_repos.png"}, "heroine": {"assomme": "assets/heroine_assomme.png", "attraper": "assets/heroine_attraper.png", "course_left": "assets/heroine_course_left.png", "course_right": "assets/heroine_course_right.png", "essouffle": "assets/heroine_essouffle.png", "marche_left": "assets/heroine_marche_left.png", "marche_right": "assets/heroine_marche_right.png", "recule_left": "assets/heroine_recule_left.png", "recule_right": "assets/heroine_recule_right.png", "repos": "assets/heroine_repos.png"}, "policiers": {"policier1": "assets/policier1_marche.png", "policier2": "assets/policier2_marche.png"}, "mechants": {"gangster1": "assets/gangster1_marche.png", "gangster2": "assets/gangster2_marche.png", "mobster1": "assets/mobster1_marche.png", "mobster2": "assets/mobster2_marche.png", "thug1": "assets/thug1_marche.png", "thug2": "assets/thug2_marche.png", "rival1": "assets/rival1_marche.png", "rival2": "assets/rival2_marche.png", "gangs_chief1": "assets/gangs_chief1_marche.png", "gangs_chief2": "assets/gangs_chief2_marche.png"}, "objets": {"coeur": "assets/coeur.png", "full_life": "assets/full_life.png", "speed": "assets/speed.png", "jump": "assets/jump.png", "coin": "assets/coin.png", "money": "assets/money.png"}};
 const IMAGES = {};
 Object.keys(SPRITES).forEach(perso => {
   IMAGES[perso] = {};
@@ -399,66 +399,93 @@ function roundRect(c, x, y, w, h, r) {
   c.closePath();
 }
 
-// --- DÉCOR URBAIN (tuiles réelles "RPG Urban Pack" de Kenney.nl, licence CC0 -- demande
-// explicite 2026-11-18 : "quelque chose qui ressemble plus à... un vrai jeu". Sol/murs/porte/
-// arbres/feu de signalisation en vraies tuiles 16x16 ; voitures restent dessinées (pas de tuile
-// retenue pour l'instant) ; voir CREDITS.md.) -------------------------------------------------
-const TAILLE_TUILE = 24;
-// Positions de sol légèrement variées, précalculées UNE fois (pas à chaque frame, sinon ça
-// scintillerait) -- juste une pointe de texture, pas un vrai damier aléatoire.
-const SOL_VARIANTES = [];
-for (let x = 0; x < 640; x += TAILLE_TUILE) {
-  for (let y = 0; y < 400; y += TAILLE_TUILE) {
-    const r = Math.random();
-    SOL_VARIANTES.push({ x: x + TAILLE_TUILE / 2, y: y + TAILLE_TUILE / 2,
-      tuile: r < 0.08 ? "sol_marque" : (r < 0.14 ? "sol_ligne" : "sol") });
-  }
-}
+// --- DÉCOR URBAIN (généré une fois, formes fixes -- demande explicite : "il me faut un
+// milieu urbain", pas un village/une nature) : silhouette d'immeubles en fond, voies avec
+// marquage au sol, lampadaires, voitures garées -- tout en formes vectorielles, 100% original.
+const SKYLINE = Array.from({ length: 11 }, (_, i) => {
+  const w = 44 + Math.random() * 30;
+  return { x: i * 62 - 10, w, h: 16 + Math.random() * 26 };
+});
 const LAMPADAIRES = [{ x: 300, y: 70 }, { x: 40, y: 360 }, { x: 600, y: 230 }];
 const VOITURES = [{ x: 200, y: 345, c: "#c0392b" }, { x: 540, y: 260, c: "#2471a3" }];
-const ARBRES_MAP = [
-  { x: 560, y: 50, tuile: "arbre_vert" }, { x: 60, y: 60, tuile: "arbre_orange" },
-  { x: 600, y: 370, tuile: "arbre_vert" }, { x: 40, y: 180, tuile: "arbre_orange" },
-];
 
 function dessinerImmeuble(c, s) {
   const fait = s.queue.length === 0;
   const accent = fait ? "#2ecc71" : "#ff2d78";
-  const T = TAILLE_TUILE;
-  // Mur en tuiles 3x3 (haut/corps/bas), porte incrustée en bas au centre.
-  [-1, 0, 1].forEach(dx => dessinerPersonnage(c, s.x + dx * T, s.y - T, "tuiles", "mur_haut", false, T));
-  [-1, 0, 1].forEach(dx => dessinerPersonnage(c, s.x + dx * T, s.y, "tuiles", "mur_corps", false, T));
-  [-1, 0, 1].forEach(dx => dessinerPersonnage(c, s.x + dx * T, s.y + T, "tuiles", "mur_bas", false, T));
-  dessinerPersonnage(c, s.x, s.y + T, "tuiles", "porte", false, T);
-
-  // Liseré de couleur (fait/pas fait) tout autour du bâtiment.
   c.save();
   c.shadowColor = accent;
-  c.shadowBlur = 14;
+  c.shadowBlur = 16;
+  c.fillStyle = "#1b1f33";
   c.strokeStyle = accent;
   c.lineWidth = 3;
-  c.strokeRect(s.x - 1.5 * T, s.y - 1.5 * T, 3 * T, 3 * T);
+  roundRect(c, s.x - 36, s.y - 46, 72, 72, 6);
+  c.fill(); c.stroke();
   c.restore();
+
+  // fenêtres éclairées
+  c.fillStyle = "#ffe066";
+  for (let row = 0; row < 2; row++) {
+    for (let col = 0; col < 2; col++) {
+      c.fillRect(s.x - 26 + col * 30, s.y - 36 + row * 22, 12, 14);
+    }
+  }
+  // porte
+  c.fillStyle = "#0b0b1a";
+  c.fillRect(s.x - 9, s.y + 8, 18, 18);
 
   c.font = "22px sans-serif";
   c.textAlign = "center";
-  c.fillText(s.emoji, s.x, s.y - 1.5 * T - 10);
+  c.fillText(s.emoji, s.x, s.y - 54);
   c.font = "bold 13px sans-serif";
   c.fillStyle = "#fff";
-  c.fillText(s.nom, s.x, s.y + 1.5 * T + 16);
+  c.fillText(s.nom, s.x, s.y + 42);
   c.fillStyle = accent;
-  c.fillText(fait ? "✓ fait" : `${s.queue.length} restant(s)`, s.x, s.y + 1.5 * T + 32);
+  c.fillText(fait ? "✓ fait" : `${s.queue.length} restant(s)`, s.x, s.y + 58);
 }
 
 function dessinerMap() {
-  SOL_VARIANTES.forEach(t => dessinerPersonnage(ctx, t.x, t.y, "tuiles", t.tuile, false, TAILLE_TUILE));
+  // Sol (bitume)
+  ctx.fillStyle = "#23232f";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  ARBRES_MAP.forEach(a => dessinerPersonnage(ctx, a.x, a.y, "tuiles", a.tuile, false, 30));
+  // Silhouette d'immeubles en fond (bande du haut, purement décorative)
+  SKYLINE.forEach(b => {
+    ctx.fillStyle = "#171722";
+    ctx.fillRect(b.x, 0, b.w, b.h);
+    ctx.fillStyle = "rgba(255,224,102,0.5)";
+    for (let wx = b.x + 6; wx < b.x + b.w - 6; wx += 12) {
+      if (Math.random() < 0.6) ctx.fillRect(wx, b.h * 0.3, 3, 3);
+    }
+  });
 
-  // Lampadaires -> feux de signalisation (vraie tuile)
-  LAMPADAIRES.forEach(l => dessinerPersonnage(ctx, l.x, l.y, "tuiles", "feu_signalisation", false, 30));
+  // Voies + marquage au sol
+  ctx.strokeStyle = "rgba(255,255,255,0.06)";
+  ctx.lineWidth = 46;
+  ctx.beginPath(); ctx.moveTo(0, 170); ctx.lineTo(canvas.width, 170); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, 300); ctx.lineTo(canvas.width, 300); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(220, 0); ctx.lineTo(220, canvas.height); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(420, 0); ctx.lineTo(420, canvas.height); ctx.stroke();
+  ctx.strokeStyle = "#ffd166";
+  ctx.lineWidth = 2;
+  ctx.setLineDash([14, 12]);
+  [170, 300].forEach(y => { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); });
+  [220, 420].forEach(x => { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); });
+  ctx.setLineDash([]);
 
-  // Voitures garées (décor, toujours dessinées -- pas de tuile retenue pour l'instant)
+  // Lampadaires
+  LAMPADAIRES.forEach(l => {
+    ctx.strokeStyle = "#444";
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(l.x, l.y); ctx.lineTo(l.x, l.y + 26); ctx.stroke();
+    ctx.save();
+    ctx.shadowColor = "#ffe066";
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#ffe066";
+    ctx.beginPath(); ctx.arc(l.x, l.y, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  });
+
+  // Voitures garées (décor)
   VOITURES.forEach(v => {
     ctx.fillStyle = v.c;
     roundRect(ctx, v.x - 16, v.y - 8, 32, 16, 4);
