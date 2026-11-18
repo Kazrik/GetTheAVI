@@ -232,7 +232,15 @@ const stations = [
 
 function reconstruireStations() {
   stations.forEach(s => { s.queue = []; });
+  if (!VERBES.length) return;
   VERBES.forEach((v, i) => stations[i % stations.length].queue.push(v));
+  // Moins de verbes que de stations (ex: 3 verbes pour 4 lieux, cas réel de la démo) : le
+  // round-robin ci-dessus laisse certaines stations sans AUCUN verbe, affichées "✓ fait"
+  // d'office au lieu d'être jouables -- bug réel signalé. On complète en réutilisant des
+  // verbes déjà distribués ailleurs plutôt que de laisser un lieu injouable.
+  stations.forEach((s, i) => {
+    if (s.queue.length === 0) s.queue.push(VERBES[i % VERBES.length]);
+  });
 }
 reconstruireStations();
 
